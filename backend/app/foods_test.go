@@ -229,6 +229,58 @@ func TestFoodSearch(t *testing.T) {
 	s.Test(t)
 }
 
+// A branded "Espresso" is often coffee beans, with the calories of 100 g of
+// beans: the brewed espresso from the generic table comes first, by a shot.
+func TestEspressoSearch(t *testing.T) {
+	a := newApp(t)
+	defer a.Cleanup()
+	ada, _ := addUser(t, a, "ada@example.com", "owner")
+	storeFoods(t, a, "off",
+		foods.Food{SourceID: "5400000000021", Barcode: "5400000000021", Name: "Espresso", Brand: "Lavazza", Kcal: 350},
+		foods.Food{SourceID: "5400000000022", Barcode: "5400000000022", Name: "Koffie", Brand: "Delhaize", Kcal: 340},
+	)
+	for q, want := range map[string]string{
+		"espresso":     "Espresso, restaurant-prepared",
+		"koffie":       "Coffee, brewed",
+		"black coffee": "Coffee, brewed",
+		"coffee":       "Coffee, brewed",
+	} {
+		found, err := foods.Search(a, ada.Id, q, 5)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if len(found) == 0 || found[0].GetString("name") != want {
+			names := []string{}
+			for _, f := range found {
+				names = append(names, f.GetString("name"))
+			}
+			t.Errorf("%s: %q", q, names)
+		}
+	}
+	espresso, err := a.FindFirstRecordByFilter("foods", "source = 'usda' && source_id = '171891'")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if espresso.GetFloat("kcal")*espresso.GetFloat("serving_g")/100 > 5 || espresso.GetString("serving_label") != "1 shot" {
+		t.Errorf("a shot of espresso: %v", espresso)
+	}
+
+	// a table imported with the USDA names gets the new ones, on the same food
+	espresso.Set("name", "Beverages, coffee, brewed, espresso, restaurant-prepared")
+	espresso.Set("serving_g", 29.6)
+	if err := a.Save(espresso); err != nil {
+		t.Fatal(err)
+	}
+	if err := foods.RenameUSDA(a); err != nil {
+		t.Fatal(err)
+	}
+	again, err := a.FindRecordById("foods", espresso.Id)
+	if err != nil || again.GetString("name") != "Espresso, restaurant-prepared" || again.GetFloat("serving_g") != 30 ||
+		!strings.Contains(again.GetString("aliases"), "Beverages, coffee, brewed, espresso") {
+		t.Errorf("renamed: %v %v", again, err)
+	}
+}
+
 func TestCustomFoodsAreSearchable(t *testing.T) {
 	a := newApp(t)
 	defer a.Cleanup()
