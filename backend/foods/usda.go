@@ -43,8 +43,56 @@ func BundledUSDA() (Table, error) {
 	if err != nil {
 		return t, err
 	}
-	err = json.NewDecoder(zr).Decode(&t)
-	return t, err
+	if err = json.NewDecoder(zr).Decode(&t); err != nil {
+		return t, err
+	}
+	for i := range t.Foods {
+		renameUSDA(&t.Foods[i])
+	}
+	return t, nil
+}
+
+// A few everyday foods hide behind USDA's names, "Beverages, coffee, brewed,
+// espresso, restaurant-prepared": a search for espresso then puts any branded
+// product called Espresso first, such as coffee beans whose calories are per
+// 100 g of beans. These get the names people search for, in English, Dutch and
+// French, and the serving they are drunk in. The USDA name stays as an alias.
+var usdaRenames = map[string]Food{
+	"171891": {Name: "Espresso, restaurant-prepared", NameNL: "Espresso", NameFR: "Café expresso",
+		ServingG: 30, ServingLabel: "1 shot"},
+	"174125": {Name: "Espresso, decaffeinated, restaurant-prepared", NameNL: "Espresso, cafeïnevrij",
+		NameFR: "Café expresso, décaféiné", ServingG: 30, ServingLabel: "1 shot"},
+	"171890": {Name: "Coffee, brewed", NameNL: "Koffie, zwart", NameFR: "Café noir", Aliases: "Black coffee, brewed",
+		ServingG: 200, ServingLabel: "1 cup"},
+	"171889": {Name: "Coffee, brewed, decaffeinated", NameNL: "Koffie, zwart, cafeïnevrij",
+		NameFR: "Café noir, décaféiné", Aliases: "Black coffee, decaffeinated", ServingG: 200, ServingLabel: "1 cup"},
+}
+
+func renameUSDA(f *Food) {
+	r, ok := usdaRenames[f.SourceID]
+	if !ok || f.Name == r.Name {
+		return
+	}
+	f.Aliases = strings.Trim(r.Aliases+"; "+f.Name, "; ")
+	f.Name, f.NameNL, f.NameFR = r.Name, r.NameNL, r.NameFR
+	f.ServingG, f.ServingLabel = r.ServingG, r.ServingLabel
+}
+
+// RenameUSDA updates the foods of usdaRenames in a table imported before they
+// had those names.
+func RenameUSDA(app core.App) error {
+	t, err := BundledUSDA()
+	if err != nil {
+		return err
+	}
+	var renamed []Food
+	for _, f := range t.Foods {
+		if _, ok := usdaRenames[f.SourceID]; ok {
+			renamed = append(renamed, f)
+		}
+	}
+	_, err = Store(app, "usda", renamed)
+	return err
 }
 
 // ImportUSDA stores the bundled USDA table, unless that edition is already in.
