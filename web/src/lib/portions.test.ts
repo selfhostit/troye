@@ -33,7 +33,39 @@ describe('household units', () => {
     expect(householdUnits('Peanut butter')[0].one).toBe('tbsp');
     expect(householdUnits('Oat milk')[0].one).toBe('splash');
     expect(householdUnits('Chocolate, dark')[0].one).toBe('square');
-    expect(householdUnits('Watermelon')).toEqual([]);
+    expect(householdUnits('Pineapple, raw')[0].one).toBe('slice');
+    expect(householdUnits('Bananas, raw')[0].one).toBe('piece');
+    expect(householdUnits('Sausage, Italian')[0].one).toBe('sausage');
+    expect(householdUnits("APPLEBEE'S, Double Crunch Shrimp")[0].one).toBe('shrimp');
+    expect(householdUnits('Sinaasappel')[0]).toEqual({ one: 'piece', many: 'pieces', grams: 150 });
+    expect(householdUnits('Grapes, red, seedless, raw')[0].one).toBe('handful');
+    expect(householdUnits('Zzz')).toEqual([]);
+  });
+
+  it('looks at the food before its details', () => {
+    expect(householdUnits('Croissants, butter')[0].one).toBe('piece');
+    expect(householdUnits('Crackers, milk')[0].one).toBe('piece');
+    expect(householdUnits('Pancakes, buttermilk')[0].one).toBe('piece');
+  });
+
+  it('counts what people count and slices fruit', () => {
+    expect(householdUnits('Meatballs, frozen, Italian style')[0]).toEqual({
+      one: 'meatball',
+      many: 'meatballs',
+      grams: 30,
+    });
+    expect(householdUnits('Gehaktballetjes')[0].one).toBe('meatball');
+    expect(householdUnits('Chicken, nuggets')[0].one).toBe('nugget');
+    expect(householdUnits('Strawberries, raw')[0].many).toBe('strawberries');
+    for (const fruit of [
+      'Apples, raw, with skin',
+      'Pears, raw',
+      'Mangos, raw',
+      'Peaches, yellow, raw',
+    ]) {
+      expect(householdUnits(fruit).map((u) => u.one)).toEqual(['piece', 'slice']);
+    }
+    expect(householdUnits('Watermelon, raw')[0].one).toBe('slice');
   });
 });
 
@@ -43,6 +75,28 @@ describe('units of a food', () => {
     expect(unitsOf(bread)).toEqual([{ one: 'slice', many: 'slices', grams: 30 }]);
     const hummus = food('Hummus', { serving_g: 50, serving_label: '1 pot' });
     expect(unitsOf(hummus).map((u) => u.one)).toEqual(['pot', 'tbsp', 'tsp']);
+  });
+
+  it('puts a measure after the household units', () => {
+    const apple = food('Apples, raw', { serving_g: 125, serving_label: '1 cup, chopped' });
+    expect(unitsOf(apple).map((u) => u.one)).toEqual(['piece', 'slice', 'cup']);
+    const meatballs = food('Meatballs, frozen', { serving_g: 85, serving_label: '3 oz' });
+    expect(unitsOf(meatballs)[0].one).toBe('meatball');
+    // a serving of the same name keeps its place and takes its weight
+    const coffee = food('Coffee, brewed', { serving_g: 240, serving_label: '1 cup' });
+    expect(unitsOf(coffee)).toEqual([
+      { one: 'cup', many: 'cups', grams: 240 },
+      { one: 'mug', many: 'mugs', grams: 300 },
+    ]);
+  });
+
+  it('reads a whole food of a size as a piece', () => {
+    const apple = food('Apples, raw', { serving_g: 182, serving_label: '1 medium (3" dia)' });
+    expect(unitsOf(apple)[0]).toEqual({ one: 'piece', many: 'pieces', grams: 182 });
+    const egg = food('Egg, white, raw', { serving_g: 33, serving_label: '1 large' });
+    expect(unitsOf(egg)).toEqual([{ one: 'egg', many: 'eggs', grams: 33 }]);
+    const dates = food('Dates, medjool', { serving_g: 24, serving_label: '1 date, pitted' });
+    expect(unitsOf(dates)).toEqual([{ one: 'date', many: 'dates', grams: 24 }]);
   });
 
   it('counts a serving without a simple name as servings', () => {
