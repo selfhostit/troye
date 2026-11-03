@@ -47,7 +47,7 @@ func Name(food *core.Record, lang string) string {
 }
 
 // record is the food as columns of the foods table.
-func (f Food) record(source string) dbx.Params {
+func record(f Food, source string) dbx.Params {
 	value := func(v float64) float64 {
 		if math.IsNaN(v) || v < 0 {
 			return 0
@@ -134,7 +134,7 @@ func storeBatch(app core.App, source string, batch []Food) (int, error) {
 	err := app.RunInTransaction(func(tx core.App) error {
 		now := types.NowDateTime().String()
 		for _, f := range batch {
-			p := f.record(source)
+			p := record(f, source)
 			if p["name"] == "" || p["source_id"] == "" {
 				continue
 			}
