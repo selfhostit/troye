@@ -7,6 +7,9 @@
 //   - Open Food Facts products sold in Belgium and the Netherlands, downloaded
 //     every month so barcodes work offline, and looked up live otherwise
 //
+// Reading the tables, and the search helpers, are in the shared module
+// github.com/selfhostit/food; this package stores and ranks them for Troye.
+//
 // Imports write straight to the database in batches, because the tables hold
 // thousands of foods and Open Food Facts about a hundred thousand products.
 // An import adds and updates foods but never deletes one, since diary entries
@@ -16,41 +19,21 @@ package foods
 import (
 	"fmt"
 	"math"
-	"regexp"
 	"strings"
-	"unicode"
 
 	"github.com/pocketbase/dbx"
 	"github.com/pocketbase/pocketbase/core"
 	"github.com/pocketbase/pocketbase/tools/security"
 	"github.com/pocketbase/pocketbase/tools/types"
-	"golang.org/x/text/runes"
-	"golang.org/x/text/transform"
-	"golang.org/x/text/unicode/norm"
+	"github.com/selfhostit/food"
 )
 
 // Food is one food from a table, with its values per 100 g.
-type Food struct {
-	SourceID string `json:"id"`
-	Name     string `json:"name"`
-	NameNL   string `json:"name_nl,omitempty"`
-	NameFR   string `json:"name_fr,omitempty"`
-	Aliases  string `json:"aliases,omitempty"`
-	Group    string `json:"group,omitempty"`
-	Brand    string `json:"brand,omitempty"`
-	Barcode  string `json:"barcode,omitempty"`
+type Food = food.Food
 
-	Kcal    float64 `json:"kcal"`
-	Protein float64 `json:"protein"`
-	Carbs   float64 `json:"carbs"`
-	Fat     float64 `json:"fat"`
-	Fiber   float64 `json:"fiber"`
-	Sugar   float64 `json:"sugar"`
-	Salt    float64 `json:"salt"`
-
-	ServingG     float64 `json:"serving_g,omitempty"`
-	ServingLabel string  `json:"serving_label,omitempty"`
-}
+// Normalize lowercases s, drops accents and turns everything but letters and
+// digits into single spaces, so "Pâté, de campagne" becomes "pate de campagne".
+func Normalize(s string) string { return food.Normalize(s) }
 
 // Name is a food's name in the given language (en, nl or fr), or its English
 // name when it has none in that language.
@@ -63,8 +46,6 @@ func Name(food *core.Record, lang string) string {
 	return food.GetString("name")
 }
 
-var barcodePattern = regexp.MustCompile(`^\d{6,14}$`)
-
 // record is the food as columns of the foods table.
 func (f Food) record(source string) dbx.Params {
 	value := func(v float64) float64 {
@@ -74,7 +55,7 @@ func (f Food) record(source string) dbx.Params {
 		return math.Round(math.Min(v, 1000)*100) / 100
 	}
 	barcode := f.Barcode
-	if !barcodePattern.MatchString(barcode) {
+	if !food.BarcodePattern.MatchString(barcode) {
 		barcode = ""
 	}
 	serving, label := f.ServingG, truncate(strings.TrimSpace(f.ServingLabel), 50)
@@ -174,30 +155,6 @@ func storeBatch(app core.App, source string, batch []Food) (int, error) {
 
 // the alphabet of PocketBase's own record ids
 const idAlphabet = "abcdefghijklmnopqrstuvwxyz0123456789"
-
-var fold = transform.Chain(norm.NFD, runes.Remove(runes.In(unicode.Mn)), norm.NFC)
-
-// Normalize lowercases s, drops accents and turns everything but letters and
-// digits into single spaces, so "Pâté, de campagne" becomes "pate de campagne".
-func Normalize(s string) string {
-	folded, _, err := transform.String(fold, s)
-	if err != nil {
-		folded = s
-	}
-	folded = strings.NewReplacer("ß", "ss", "æ", "ae", "œ", "oe", "Æ", "ae", "Œ", "oe").Replace(folded)
-	var b strings.Builder
-	space := true
-	for _, r := range strings.ToLower(folded) {
-		if unicode.IsLetter(r) || unicode.IsDigit(r) {
-			b.WriteRune(r)
-			space = false
-		} else if !space {
-			b.WriteByte(' ')
-			space = true
-		}
-	}
-	return strings.TrimSpace(b.String())
-}
 
 // searchText joins the normalized names with " | ", which a search word can't
 // match across.

@@ -23,6 +23,9 @@ The architecture and build plan are in `docs/plan.md`.
 - Heavy work (ML, scraping, LLM calls) goes in a Python worker under `workers/` that uses
   `plasto_worker.Client`; workers write records, Go hooks react. Allow workers in API rules
   with `@request.auth.collectionName = "workers"`.
+- Reading the food tables (Open Food Facts, USDA, NEVO) and the search helpers live in the
+  shared module `github.com/selfhostit/food`, used by Shoppa too; `backend/foods` stores and
+  ranks them for Troye. Change the reading there, then bump it in `backend/go.mod`.
 - `docs/first-feature.md` walks through adding a feature across every layer.
 - Deploy files are in `deploy/` (see `docs/deploy.md`); `make smoke` runs the images with
   `deploy/docker-compose.yml` end to end, and CI runs it on every PR.
