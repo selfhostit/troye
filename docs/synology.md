@@ -37,6 +37,13 @@ The script creates `/volume1/docker/troye` with the settings in `.env` and the
 database in `pb_data`, owned by your DSM user, and starts the app. It ends with
 `troye is running`.
 
+Keep the `docker` folder private: it holds everyone's food log, weight and meal
+photos, and anyone who can open it over the network can copy them. In Control
+Panel > Shared Folder, select `docker` > **Edit**: on **Permissions**, give
+*administrators* Read/Write and every other user and group No access; on
+**General**, tick *Hide this shared folder in "My Network Places"*. Don't sync it
+with Synology Drive or Cloud Sync.
+
 ## 2. Settings
 
 Open the settings, for example with `sudo vi /volume1/docker/troye/.env` (or with
@@ -121,7 +128,8 @@ photo up, and the phone gets a notification when it is ready to check.
 
 The app backs up its database and photos every night at 03:00 and keeps the last
 7, in `pb_data/backups` on the same disk. To keep a copy elsewhere, add
-`docker/troye` to a **Hyper Backup** task, to a USB disk or another NAS. To restore
+`docker/troye/pb_data` to a **Hyper Backup** task with **client-side encryption**
+turned on, to a USB disk or another NAS. To restore
 a nightly backup, use the admin page: Settings > Backups.
 
 ## Updates
