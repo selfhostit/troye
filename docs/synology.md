@@ -35,7 +35,8 @@ curl -fsSL https://raw.githubusercontent.com/selfhostit/troye/main/deploy/instal
 Press Enter when it asks for a Tailscale key; the reverse proxy below replaces it.
 The script creates `/volume1/docker/troye` with the settings in `.env` and the
 database in `pb_data`, owned by your DSM user, and starts the app. It ends with
-`troye is running`.
+`troye is running`, with the address it is on: if another app already has port 8092,
+the installer takes the next free one, so use that port wherever this guide says 8092.
 
 Keep the `docker` folder private: it holds everyone's food log, weight and meal
 photos, and anyone who can open it over the network can copy them. In Control
