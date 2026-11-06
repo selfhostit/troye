@@ -301,13 +301,20 @@
       onclick={() => pick(f)}
     >
       <span class="min-w-0">
-        <span class="block truncate font-medium">{name(f)}</span>
+        <span class="line-clamp-2 font-medium">{name(f)}</span>
         <span class="block truncate text-sm text-zinc-500 dark:text-zinc-400">
-          {[f.brand, usual.amount || `${usual.grams} g`].filter(Boolean).join(' · ')}
+          {[f.brand, usual.amount ? `${usual.amount} (${usual.grams} g)` : `${usual.grams} g`]
+            .filter(Boolean)
+            .join(' · ')}
         </span>
       </span>
-      <span class="shrink-0 text-sm text-zinc-500 tabular-nums dark:text-zinc-400">
-        {Math.round((f.kcal * usual.grams) / 100)} kcal
+      <span class="shrink-0 text-right tabular-nums">
+        <span class="block text-sm text-zinc-700 dark:text-zinc-200">
+          {Math.round((f.kcal * usual.grams) / 100)} kcal
+        </span>
+        <span class="block text-xs text-zinc-500 dark:text-zinc-400"
+          >{Math.round(f.kcal)} / 100 g</span
+        >
       </span>
     </button>
   </li>

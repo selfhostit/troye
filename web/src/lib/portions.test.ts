@@ -134,3 +134,19 @@ describe('units of a food', () => {
     expect(guessAmount(bread, 50)).toBe('');
   });
 });
+
+describe('chicken breast', () => {
+  it('starts every chicken breast at a piece, whatever its USDA serving', () => {
+    for (const serving of [
+      { serving_g: 85, serving_label: '3 oz' },
+      { serving_g: 140, serving_label: '1 cup, chopped or diced' },
+      { serving_g: 52, serving_label: '1 unit (yield from 1 lb ready-to-cook chicken)' },
+      { serving_g: 0, serving_label: '' },
+    ]) {
+      expect(startAmount(food('Chicken breast, roasted', serving))).toEqual({
+        grams: 150,
+        amount: '1 piece',
+      });
+    }
+  });
+});

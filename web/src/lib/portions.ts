@@ -183,6 +183,9 @@ const sizes = new Set([
 export function servingUnit(food: Pick<Food, 'serving_g' | 'serving_label'>): Unit | null {
   if (!(food.serving_g > 0)) return null;
   const label = food.serving_label.trim();
+  // USDA's "1 unit (yield from 1 lb ready-to-cook chicken)" is no amount
+  // anyone knows; the food's household units say it better
+  if (/\byield from\b/i.test(label)) return null;
   // one word, alone or before a comma, a bracket or an amount: "1 link 3 oz"
   const simple = label.match(/^1 ([a-z]+)(?:$|,|\s*\(|\s+\d)/i)?.[1]?.toLowerCase();
   if (simple && sizes.has(simple)) return piece(food.serving_g);
