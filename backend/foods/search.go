@@ -49,10 +49,29 @@ func Search(app core.App, userID, q string, limit int) ([]*core.Record, error) {
 		}
 		return found[i].GetString("name") < found[j].GetString("name")
 	})
-	if len(found) > limit {
-		found = found[:limit]
+	return distinct(found, limit), nil
+}
+
+// distinct keeps the best of the foods from the tables that have the same name
+// and brand, such as "Chicken breast, raw" from SR Legacy and from Foundation
+// Foods, and at most limit foods.
+func distinct(found []*core.Record, limit int) []*core.Record {
+	seen := make(map[string]bool, len(found))
+	kept := make([]*core.Record, 0, min(len(found), limit))
+	for _, r := range found {
+		if len(kept) == limit {
+			break
+		}
+		if r.GetString("owner") == "" {
+			key := Normalize(r.GetString("name")) + "|" + Normalize(r.GetString("brand"))
+			if seen[key] {
+				continue
+			}
+			seen[key] = true
+		}
+		kept = append(kept, r)
 	}
-	return found, nil
+	return kept
 }
 
 func matches(app core.App, userID string, words []string) ([]*core.Record, error) {
@@ -143,6 +162,19 @@ func score(r *core.Record, words []string, userID string, uses int) float64 {
 	if food.HasOtherWord(name, processedWords, words) {
 		total -= 0.8
 	}
+	// the food itself before the same food as a cold cut, a fast food meal or
+	// a regional dish: a chicken breast before sliced chicken breast
+	if nicheGroups[r.GetString("food_group")] {
+		total -= 1.5
+	}
+	// meat before offal, and without skin unless asked: beef before beef
+	// tripe, chicken breast before chicken breast with skin
+	if food.HasOtherWord(name, offalWords, words) {
+		total -= 1.5
+	}
+	if cookedGroups[r.GetString("food_group")] && food.HasOtherWord(name, []string{"skin"}, words) {
+		total -= 0.8
+	}
 	// meat, fish, grains and pulses are logged cooked: cooked rice before raw
 	if cookedGroups[r.GetString("food_group")] && food.HasOtherWord(name, rawWords, words) {
 		total -= 0.8
@@ -152,7 +184,15 @@ func score(r *core.Record, words []string, userID string, uses int) float64 {
 
 var (
 	processedWords = []string{"dried", "dehydrated", "powder", "frozen", "canned", "condensed", "imitation",
-		"unprepared", "prepackaged", "deli", "concentrate", "dry"}
+		"unprepared", "prepackaged", "deli", "concentrate", "dry",
+		// plain meat before breaded, seasoned or injected ("with added solution")
+		"breaded", "batter", "seasoned", "seasoning", "solution", "rotisserie", "bbq"}
+	nicheGroups = map[string]bool{
+		"Sausages and Luncheon Meats": true, "Fast Foods": true, "Restaurant Foods": true,
+		"American Indian/Alaska Native Foods": true, "Baby Foods": true,
+	}
+	offalWords = []string{"brain", "lungs", "pancreas", "spleen", "thymus", "tripe", "sweetbread", "giblets",
+		"kidney", "kidneys", "liver", "heart", "gizzard", "tongue", "neck", "feet"}
 	rawWords     = []string{"raw", "uncooked", "dry"}
 	cookedGroups = map[string]bool{
 		"Poultry Products": true, "Beef Products": true, "Pork Products": true, "Lamb, Veal, and Game Products": true,

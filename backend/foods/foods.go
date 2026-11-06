@@ -62,11 +62,18 @@ func record(f Food, source string) dbx.Params {
 	if serving <= 0 || serving > 5000 {
 		serving, label = 0, ""
 	}
+	name, aliases := strings.TrimSpace(f.Name), strings.TrimSpace(f.Aliases)
+	if source == "usda" {
+		if short := TidyUSDA(name); short != name {
+			aliases = strings.Trim(aliases+"; "+name, "; ")
+			name = short
+		}
+	}
 	p := dbx.Params{
-		"name":          truncate(strings.TrimSpace(f.Name), 200),
+		"name":          truncate(name, 200),
 		"name_nl":       truncate(strings.TrimSpace(f.NameNL), 200),
 		"name_fr":       truncate(strings.TrimSpace(f.NameFR), 200),
-		"aliases":       truncate(strings.TrimSpace(f.Aliases), 1000),
+		"aliases":       truncate(aliases, 1000),
 		"food_group":    truncate(strings.TrimSpace(f.Group), 100),
 		"brand":         truncate(strings.TrimSpace(f.Brand), 200),
 		"source":        source,

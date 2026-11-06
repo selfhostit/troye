@@ -29,6 +29,17 @@ func RenameUSDA(app core.App) error {
 	return err
 }
 
+// RefreshUSDA stores the whole bundled USDA table again, over the foods it
+// already has, for when Troye changes how it stores them, such as their names.
+func RefreshUSDA(app core.App) error {
+	t, err := BundledUSDA()
+	if err != nil {
+		return err
+	}
+	_, err = Store(app, "usda", t.Foods)
+	return err
+}
+
 // ImportUSDA stores the bundled USDA table, unless that edition is already in.
 func ImportUSDA(app core.App) error {
 	t, err := BundledUSDA()
