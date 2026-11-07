@@ -6,6 +6,8 @@
 
 **A private calorie and weight tracker that runs on your own hardware.**
 
+[![OpenSSF Scorecard](https://api.scorecard.dev/projects/github.com/selfhostit/troye/badge)](https://scorecard.dev/viewer/?uri=github.com/selfhostit/troye)
+
 </div>
 
 Troye is a self-hosted calorie counter: an onboarding interview sets your daily
