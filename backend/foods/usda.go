@@ -2,7 +2,9 @@ package foods
 
 import (
 	"fmt"
+	"strings"
 
+	"github.com/pocketbase/dbx"
 	"github.com/pocketbase/pocketbase/core"
 	"github.com/selfhostit/food"
 )
@@ -31,10 +33,25 @@ func RenameUSDA(app core.App) error {
 
 // RefreshUSDA stores the whole bundled USDA table again, over the foods it
 // already has, for when Troye changes how it stores them, such as their names.
+// It does nothing when the foods already have their short names, as on a new
+// install, which imports the table with them.
 func RefreshUSDA(app core.App) error {
 	t, err := BundledUSDA()
 	if err != nil {
 		return err
+	}
+	for _, f := range t.Foods {
+		short := TidyUSDA(strings.TrimSpace(f.Name))
+		if short == strings.TrimSpace(f.Name) {
+			continue
+		}
+		// every food is stored the same way, so one tells for all of them
+		stored, err := app.FindFirstRecordByFilter("foods", "source = 'usda' && source_id = {:id}",
+			dbx.Params{"id": f.SourceID})
+		if err == nil && stored.GetString("name") == truncate(short, 200) {
+			return nil
+		}
+		break
 	}
 	_, err = Store(app, "usda", t.Foods)
 	return err
