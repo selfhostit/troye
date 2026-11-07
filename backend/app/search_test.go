@@ -60,3 +60,38 @@ func TestSearchChickenBreast(t *testing.T) {
 		t.Errorf("full name: %v %v", found, err)
 	}
 }
+
+// An install whose USDA foods were stored before they had short names gets
+// them, and one that has them is left as it is.
+func TestRefreshUSDA(t *testing.T) {
+	a := newApp(t)
+	defer a.Cleanup()
+	count := func(where string) int {
+		var n int
+		if err := a.DB().NewQuery("SELECT COUNT(*) FROM foods WHERE source = 'usda' AND " + where).Row(&n); err != nil {
+			t.Fatal(err)
+		}
+		return n
+	}
+	if _, err := a.DB().NewQuery("UPDATE foods SET updated = ''").Execute(); err != nil {
+		t.Fatal(err)
+	}
+	if err := foods.RefreshUSDA(a); err != nil {
+		t.Fatal(err)
+	}
+	if n := count("updated != ''"); n != 0 {
+		t.Errorf("%d foods stored again over their short names", n)
+	}
+	if _, err := a.DB().NewQuery("UPDATE foods SET name = name || ' (old)' WHERE source = 'usda'").Execute(); err != nil {
+		t.Fatal(err)
+	}
+	if err := foods.RefreshUSDA(a); err != nil {
+		t.Fatal(err)
+	}
+	if n := count("name LIKE '% (old)'"); n != 0 {
+		t.Errorf("%d foods kept their old names", n)
+	}
+	if _, err := a.FindFirstRecordByData("foods", "name", "Chicken breast, roasted"); err != nil {
+		t.Errorf("no short name: %v", err)
+	}
+}

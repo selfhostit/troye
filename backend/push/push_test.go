@@ -6,6 +6,7 @@ import (
 	"encoding/base64"
 	"net/http"
 	"net/http/httptest"
+	"os"
 	"strings"
 	"sync/atomic"
 	"testing"
@@ -18,8 +19,31 @@ import (
 	"github.com/selfhostit/troye/push"
 )
 
+// template is a data dir with every migration applied, which each test app
+// starts from as a copy, so the bundled food tables are imported only once.
+var template string
+
+func TestMain(m *testing.M) {
+	empty, err := os.MkdirTemp("", "troye-empty-")
+	if err != nil {
+		panic(err)
+	}
+	migrated, err := tests.NewTestAppWithConfig(core.BaseAppConfig{DataDir: empty})
+	if err != nil {
+		panic(err)
+	}
+	template = migrated.DataDir()
+	if err := migrated.ResetBootstrapState(); err != nil {
+		panic(err)
+	}
+	code := m.Run()
+	_ = os.RemoveAll(empty)
+	_ = os.RemoveAll(template)
+	os.Exit(code)
+}
+
 func newApp(t testing.TB) *tests.TestApp {
-	a, err := tests.NewTestAppWithConfig(core.BaseAppConfig{DataDir: t.TempDir()})
+	a, err := tests.NewTestAppWithConfig(core.BaseAppConfig{DataDir: template})
 	if err != nil {
 		t.Fatal(err)
 	}
