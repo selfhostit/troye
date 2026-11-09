@@ -5,6 +5,9 @@ What changed in each release of Troye. Installs update to the newest release; se
 
 ## Unreleased
 
+- Reminders to log: at 9 pm when a meal is missing from today, and once a day after 8 hours
+  of eating time with nothing logged. They respect fasting days and eating windows, and
+  each can be turned off in Me › Notifications.
 - Nutrition screen, after a few weeks of data: your real daily burn measured from what you
   ate and how your weight moved, with a one-tap budget built on it (and back to the
   formula); nutrients drifting up or down over 4 weeks; and the weekday that runs over.

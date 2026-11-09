@@ -8,6 +8,9 @@
     pushSupport,
     testPush,
   } from '../lib/push';
+  import { errorMessage } from '../lib/pb';
+  import { reminderKinds, type Reminder } from '../lib/profile';
+  import { profile } from '../lib/profile.svelte';
 
   const support = pushSupport();
   let on = $state(false);
@@ -33,6 +36,17 @@
       message = (err as Error).message || 'Could not change notifications.';
     } finally {
       busy = false;
+    }
+  }
+
+  const isOn = (kind: Reminder) => !(profile.current?.reminders_off ?? []).includes(kind);
+
+  async function setReminder(kind: Reminder, on: boolean) {
+    message = '';
+    try {
+      await profile.setReminder(kind, on);
+    } catch (err) {
+      message = errorMessage(err, "Couldn't change the reminder.");
     }
   }
 
@@ -84,6 +98,26 @@
     </p>
   {:else}
     <p class="text-sm text-zinc-500">This browser can't show notifications.</p>
+  {/if}
+  {#if profile.current}
+    <fieldset class="flex flex-col gap-3 border-t border-zinc-100 pt-3 dark:border-zinc-800">
+      <legend class="sr-only">Reminders to log</legend>
+      <p class="text-sm font-medium">Remind me to log</p>
+      {#each reminderKinds as r (r.id)}
+        <label class="flex-row items-start gap-3 font-normal">
+          <input
+            type="checkbox"
+            class="mt-0.5"
+            checked={isOn(r.id)}
+            onchange={(e) => setReminder(r.id, e.currentTarget.checked)}
+          />
+          <span class="flex flex-col">
+            <span>{r.label}</span>
+            <span class="text-zinc-500 dark:text-zinc-400">{r.hint}</span>
+          </span>
+        </label>
+      {/each}
+    </fieldset>
   {/if}
   {#if message}<p class="text-sm text-zinc-500" role="status">{message}</p>{/if}
 </section>

@@ -1,6 +1,6 @@
 import type { FoodLanguage } from './diary';
 import { pb } from './pb';
-import type { Answers, Plan, Profile } from './profile';
+import type { Answers, Plan, Profile, Reminder } from './profile';
 import { planRequest } from './profile';
 import { session } from './session.svelte';
 
@@ -73,6 +73,16 @@ class ProfileStore {
         .collection('profiles')
         .update<Profile>(this.current.id, { measured_tdee });
     }
+  }
+
+  /** Turns a reminder to log on or off. */
+  async setReminder(kind: Reminder, on: boolean) {
+    if (!this.current) return;
+    const off = this.current.reminders_off ?? [];
+    const reminders_off = on ? off.filter((k) => k !== kind) : [...new Set([...off, kind])];
+    this.current = await pb
+      .collection('profiles')
+      .update<Profile>(this.current.id, { reminders_off });
   }
 
   /** Opens the interview again, keeping the answers. */
