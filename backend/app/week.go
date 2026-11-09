@@ -11,6 +11,7 @@ import (
 	"github.com/pocketbase/pocketbase/core"
 
 	"github.com/selfhostit/troye/daily"
+	"github.com/selfhostit/troye/insights"
 	"github.com/selfhostit/troye/jobs"
 	"github.com/selfhostit/troye/push"
 )
@@ -158,15 +159,21 @@ func sendWeeklySummaries(app core.App, now time.Time) error {
 		if err != nil {
 			return err
 		}
-		if msg, ok := WeeklyMessage(w, p.GetString("units")); ok {
+		// the Monday report's week is the one just gone
+		r, err := InsightReport(app, p.GetString("user"), now, 7)
+		if err != nil {
+			return err
+		}
+		if msg, ok := WeeklyMessage(w, p.GetString("units"), r.Warnings); ok {
 			push.ToUser(app, p.GetString("user"), msg)
 		}
 	}
 	return nil
 }
 
-// WeeklyMessage is the Monday notification for a week, if anything was logged.
-func WeeklyMessage(w Week, units string) (push.Message, bool) {
+// WeeklyMessage is the Monday notification for a week, if anything was
+// logged, naming up to two of the week's nutrient warnings.
+func WeeklyMessage(w Week, units string, warnings []insights.Warning) (push.Message, bool) {
 	if w.DaysLogged == 0 {
 		return push.Message{}, false
 	}
@@ -177,6 +184,13 @@ func WeeklyMessage(w Week, units string) (push.Message, bool) {
 	if w.HasWeight {
 		parts = append(parts, signedWeight(w.WeightChange, units))
 	}
+	if len(warnings) > 0 {
+		var watch []string
+		for _, x := range warnings[:min(len(warnings), 2)] {
+			watch = append(watch, warningWords(x))
+		}
+		parts = append(parts, "watch "+strings.Join(watch, ", "))
+	}
 	title := "Your week in Troye"
 	switch {
 	case w.UnderBudget >= 5:
@@ -185,6 +199,25 @@ func WeeklyMessage(w Week, units string) (push.Message, bool) {
 		title = "You logged every day last week"
 	}
 	return push.Message{Title: title, Body: strings.Join(parts, " · "), URL: "/#week", Tag: "weekly-" + w.Start}, true
+}
+
+// nutrientWords name nutrients in a sentence.
+var nutrientWords = map[insights.Nutrient]string{
+	insights.Kcal:    "calories",
+	insights.Protein: "protein",
+	insights.Carbs:   "carbs",
+	insights.Fat:     "fat",
+	insights.Fiber:   "fiber",
+	insights.Sugar:   "sugar",
+	insights.Salt:    "salt",
+}
+
+// warningWords is a warning in two words, such as "fat high".
+func warningWords(w insights.Warning) string {
+	if w.Kind == insights.Over {
+		return nutrientWords[w.Nutrient] + " high"
+	}
+	return nutrientWords[w.Nutrient] + " low"
 }
 
 func thousands(n int) string {

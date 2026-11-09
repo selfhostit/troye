@@ -5,6 +5,10 @@ What changed in each release of Troye. Installs update to the newest release; se
 
 ## Unreleased
 
+- Progress tab: the Weight screen now sits next to a new Nutrition screen with a chart per
+  nutrient (daily bars, 7-day average, target), warnings when last week's average of
+  calories, protein, carbs, fat, fiber, sugar or salt was off target, and estimates for days
+  you didn't log or only half logged. The Monday summary names up to two warnings.
 - Every published image carries a software bill of materials (SBOM), and an OpenSSF
   Scorecard run checks the repository's security practices every week.
 - golang.org/x/net 0.62.0, which fixes GO-2026-6860.

@@ -93,3 +93,6 @@ Each step is one PR that leaves the app working.
 6. Accuracy loop: score models on confirmed photos, so the model is picked by numbers.
 7. Extras: fasting timer, water, exercise, weekly summary.
 8. Lose It! import: the food log, weigh-ins, exercise, own foods, meal photos and plan from an export, with the nutrients, fasting days and tracker calories it needed.
+9. Progress tracking: nutrient charts with 7-day averages, warnings and estimates for
+   unlogged days; then trends and an adaptive budget from the weight trend; then reminders
+   to log (end of day, and after 8 hours without logging).

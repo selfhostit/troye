@@ -3,12 +3,14 @@ package app_test
 import (
 	"math"
 	"strconv"
+	"strings"
 	"testing"
 	"time"
 
 	"github.com/pocketbase/pocketbase/core"
 
 	"github.com/selfhostit/troye/app"
+	"github.com/selfhostit/troye/insights"
 )
 
 func save(t testing.TB, a core.App, collection string, data map[string]any) *core.Record {
@@ -71,11 +73,17 @@ func TestWeekSummary(t *testing.T) {
 		t.Errorf("streak %d", w.Streak)
 	}
 
-	msg, ok := app.WeeklyMessage(w, "metric")
+	msg, ok := app.WeeklyMessage(w, "metric", nil)
 	if !ok || msg.Title != "Great week: 5 days within budget" || msg.Body != "5 of 7 days logged · "+thousandsOf(int(math.Round(float64(4000+budget+500)/5)))+" kcal a day · −0.8 kg" {
 		t.Errorf("message %+v", msg)
 	}
-	if _, ok := app.WeeklyMessage(app.Week{}, "metric"); ok {
+	warned, _ := app.WeeklyMessage(w, "metric", []insights.Warning{
+		{Nutrient: insights.Fat, Kind: insights.Over}, {Nutrient: insights.Protein, Kind: insights.Under}, {Nutrient: insights.Salt, Kind: insights.Over},
+	})
+	if !strings.HasSuffix(warned.Body, " · watch fat high, protein low") {
+		t.Errorf("warned %q", warned.Body)
+	}
+	if _, ok := app.WeeklyMessage(app.Week{}, "metric", nil); ok {
 		t.Error("a message for an empty week")
 	}
 }
