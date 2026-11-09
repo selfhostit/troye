@@ -5,6 +5,7 @@ import (
 	"strconv"
 	"time"
 
+	"github.com/pocketbase/dbx"
 	"github.com/pocketbase/pocketbase/apis"
 	"github.com/pocketbase/pocketbase/core"
 
@@ -13,8 +14,10 @@ import (
 )
 
 // The progress screen's nutrition: GET /api/app/insights?days=30 returns the
-// last days with missing ones estimated, 7-day rolling averages and the
-// warnings for the week (see backend/insights).
+// last days with missing ones estimated, 7-day rolling averages, the
+// warnings for the week and the longer patterns (see backend/insights), and
+// what the measured burn would make the budget. Choosing that budget is a
+// profile update setting measured_tdee, which the plan then uses.
 
 func registerProgress(app core.App) {
 	app.OnServe().BindFunc(func(se *core.ServeEvent) error {
@@ -42,12 +45,55 @@ func insightsRoute(e *core.RequestEvent) error {
 	return e.JSON(http.StatusOK, r)
 }
 
+// Progress is the insights report with what the measured burn means for the plan.
+type Progress struct {
+	insights.Report
+	Budget *BudgetAdvice `json:"budget_advice"`
+}
+
+// BudgetAdvice compares the plan's budget with one built on the measured burn.
+type BudgetAdvice struct {
+	// FormulaTDEE is the burn the formula estimates from the plan's answers.
+	FormulaTDEE int `json:"formula_tdee"`
+	// MeasuredTDEE is the burn the plan uses now, 0 while it uses the formula.
+	MeasuredTDEE int `json:"measured_tdee"`
+	// Suggested is the budget the measured burn gives, at the plan's pace.
+	Suggested int `json:"suggested"`
+	Current   int `json:"current"`
+}
+
 // InsightReport analyses a person's last `days` days up to today.
-func InsightReport(app core.App, user string, today time.Time, days int) (insights.Report, error) {
+func InsightReport(app core.App, user string, today time.Time, days int) (Progress, error) {
 	from, to := insights.Range(today, days)
 	s, err := daily.Load(app, user, from, to)
 	if err != nil {
-		return insights.Report{}, err
+		return Progress{}, err
 	}
-	return insights.Analyze(s, today.Format(time.DateOnly), days), nil
+	p := Progress{Report: insights.Analyze(s, today.Format(time.DateOnly), days)}
+	if p.Burn == nil {
+		return p, nil
+	}
+	profile, err := app.FindFirstRecordByFilter("profiles", "user = {:user}", dbx.Params{"user": user})
+	if err != nil {
+		return p, nil // no plan to compare with
+	}
+	p.Budget = budgetAdvice(planFor(profile), p.Burn.TDEE, profile.GetInt("calorie_budget"), today)
+	return p, nil
+}
+
+// budgetAdvice works the plan out with the formula and with the measured
+// burn; nil when either can't be worked out.
+func budgetAdvice(in PlanInput, measured, current int, today time.Time) *BudgetAdvice {
+	inUse := in.MeasuredTDEE
+	in.MeasuredTDEE = 0
+	formula, err := ComputePlan(in, today)
+	if err != nil {
+		return nil
+	}
+	in.MeasuredTDEE = measured
+	suggested, err := ComputePlan(in, today)
+	if err != nil {
+		return nil
+	}
+	return &BudgetAdvice{FormulaTDEE: formula.TDEE, MeasuredTDEE: inUse, Suggested: suggested.Budget, Current: current}
 }

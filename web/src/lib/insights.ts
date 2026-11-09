@@ -15,6 +15,8 @@ export interface InsightDay {
   /** what a missing or partial day likely held; null without enough history */
   estimate: Totals | null;
   budget: number;
+  /** the day's weigh-in, 0 without one */
+  weight_kg: number;
 }
 
 export interface Goal {
@@ -41,6 +43,41 @@ export interface Warning {
   target: number;
 }
 
+/** A nutrient drifting over the last four weeks. */
+export interface Trend {
+  nutrient: Nutrient;
+  per_week: number;
+  average: number;
+}
+
+/** How each weekday compares with the average day, in kcal, Monday first. */
+export interface Weekdays {
+  diffs: (number | null)[];
+  /** the weekday furthest off, as "Saturday", when it is notable; empty otherwise */
+  weekday: string;
+  diff: number;
+}
+
+/** The burn measured from the last four weeks of eating and weighing. */
+export interface Burn {
+  from: string;
+  to: string;
+  tdee: number;
+  intake_kcal: number;
+  weight_per_week: number;
+  days: number;
+  weighins: number;
+}
+
+export interface BudgetAdvice {
+  formula_tdee: number;
+  /** the burn the plan uses now; 0 while it uses the formula */
+  measured_tdee: number;
+  /** the budget the measured burn gives at the plan's pace */
+  suggested: number;
+  current: number;
+}
+
 export interface Report {
   today: string;
   goals: Partial<Record<Nutrient, Goal>>;
@@ -48,6 +85,10 @@ export interface Report {
   rolling: Record<Nutrient, (number | null)[]>;
   week: InsightWeek;
   warnings: Warning[];
+  trends: Trend[];
+  weekdays: Weekdays | null;
+  burn: Burn | null;
+  budget_advice: BudgetAdvice | null;
 }
 
 export const nutrients: { id: Nutrient; label: string; unit: 'kcal' | 'g'; decimals: number }[] = [
@@ -124,4 +165,25 @@ export function chartTop(r: Report, n: Nutrient): number {
   });
   const goal = r.goals[n];
   return Math.max(...values, goal?.target ?? 0, 1) * 1.1;
+}
+
+/** A trend as a phrase, such as "Fat up 7 g a week". */
+export function trendText(t: Trend): string {
+  const way = t.per_week > 0 ? 'up' : 'down';
+  return `${meta(t.nutrient).label} ${way} ${amount(t.nutrient, Math.abs(t.per_week))} a week`;
+}
+
+/** The notable weekday as a sentence, or '' when no day stands out. */
+export function weekdayText(w: Weekdays): string {
+  if (!w.weekday) return 'No day of the week stands out: your days are even.';
+  const way = w.diff > 0 ? 'over' : 'under';
+  return `${w.weekday}s run about ${amount('kcal', Math.abs(w.diff))} ${way} your average day.`;
+}
+
+/**
+ * Whether the measured burn is worth offering as the budget: it isn't
+ * already in use, and it moves the budget by at least 50 kcal.
+ */
+export function offerBudget(a: BudgetAdvice | null, b: Burn | null): boolean {
+  return !!a && !!b && a.measured_tdee !== b.tdee && Math.abs(a.suggested - a.current) >= 50;
 }

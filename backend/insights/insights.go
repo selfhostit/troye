@@ -93,6 +93,8 @@ type Day struct {
 	// person's own complete days; nil without enough of them.
 	Estimate *daily.Nutrients `json:"estimate"`
 	Budget   int              `json:"budget"`
+	// WeightKg is the day's weigh-in, 0 without one.
+	WeightKg float64 `json:"weight_kg"`
 }
 
 // value is the day's totals for averaging: the estimate when there is one,
@@ -199,6 +201,10 @@ type Report struct {
 	Rolling  map[Nutrient][]*float64 `json:"rolling"`
 	Week     Week                    `json:"week"`
 	Warnings []Warning               `json:"warnings"`
+	// Trends, Weekdays and Burn look further back; see patterns.go.
+	Trends   []Trend   `json:"trends"`
+	Weekdays *Weekdays `json:"weekdays"`
+	Burn     *Burn     `json:"burn"`
 }
 
 // History is how many days before the first one shown a series needs, for
@@ -239,6 +245,9 @@ func Analyze(s daily.Series, today string, days int) Report {
 	if r.Week.Logged >= minLogged && r.Week.Logged+r.Week.Estimated >= minValues {
 		r.Warnings = warnings(r.Week, Goals(s.Targets, r.Week.Budget))
 	}
+	r.Trends = trends(all)
+	r.Weekdays = weekdays(all)
+	r.Burn = burn(all)
 	return r
 }
 
@@ -248,7 +257,7 @@ func classify(s daily.Series, today string) []Day {
 		if d.Date > today {
 			break
 		}
-		day := Day{Date: d.Date, Food: d.Food, Budget: d.Budget}
+		day := Day{Date: d.Date, Food: d.Food, Budget: d.Budget, WeightKg: d.WeightKg}
 		switch {
 		case d.Date == today:
 			day.Status = Today
@@ -337,22 +346,18 @@ func rolling(days []Day, i int, k Nutrient) *float64 {
 	return &m
 }
 
-// week sums up the seven days before the last one, which is today.
+// week sums up the seven days before today.
 func week(days []Day) Week {
-	end := len(days)
-	if end > 0 && days[end-1].Status == Today {
-		end--
-	}
-	start := max(end-rollingDays, 0)
 	var w Week
-	if start == end {
+	window := past(days, rollingDays)
+	if len(window) == 0 {
 		return w
 	}
-	w.From, w.To = days[start].Date, days[end-1].Date
+	w.From, w.To = window[0].Date, window[len(window)-1].Date
 
 	var values []daily.Nutrients
 	var budgets []float64
-	for _, d := range days[start:end] {
+	for _, d := range window {
 		v, ok := d.value()
 		switch {
 		case !ok:
@@ -400,15 +405,7 @@ func warnings(w Week, goals map[Nutrient]Goal) []Warning {
 			list = append(list, scored{Warning{k, Under, avg, g.Target}, 1 - avg/g.Target})
 		}
 	}
-	slices.SortStableFunc(list, func(a, b scored) int {
-		switch {
-		case a.by > b.by:
-			return -1
-		case a.by < b.by:
-			return 1
-		}
-		return 0
-	})
+	slices.SortStableFunc(list, func(a, b scored) int { return cmpDesc(a.by, b.by) })
 	out := make([]Warning, len(list))
 	for i, s := range list {
 		out[i] = s.Warning

@@ -44,6 +44,8 @@ export interface Profile extends RecordModel, Answers {
   carbs_g: number;
   fat_g: number;
   goal_date: string;
+  /** the measured burn the plan uses instead of the formula's; 0 for the formula */
+  measured_tdee: number;
 }
 
 /** What POST /api/app/plan returns. */

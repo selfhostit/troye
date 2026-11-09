@@ -12,17 +12,22 @@
   } from '../lib/insights';
   import { errorMessage } from '../lib/pb';
   import NutrientChart from './NutrientChart.svelte';
+  import Patterns from './Patterns.svelte';
 
   // What you ate over time: warnings when last week's average was off
-  // target, one nutrient's chart, and the week's averages. Days you didn't
+  // target, one nutrient's chart, the week's averages and the longer patterns. Days you didn't
   // log are estimated from your usual days, and shown as estimates.
   let range = $state<InsightRange>('1m');
   let nutrient = $state<Nutrient>('kcal');
   let report = $state<Report | null>(null);
   let error = $state('');
 
+  // bumped to load again, after the plan changes
+  let version = $state(0);
+
   $effect(() => {
     const r = range;
+    void version;
     error = '';
     loadInsights(insightRanges.find((x) => x.id === r)!.days)
       .then((rep) => r === range && (report = rep))
@@ -147,4 +152,6 @@
       </p>
     {/if}
   </section>
+
+  <Patterns {report} onchange={() => version++} />
 {/if}

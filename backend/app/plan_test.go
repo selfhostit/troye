@@ -230,3 +230,16 @@ func TestProfileBudgetFollowsTheAnswers(t *testing.T) {
 		t.Errorf("budget %d with incomplete answers", r.GetInt("calorie_budget"))
 	}
 }
+
+func TestComputePlanWithMeasuredBurn(t *testing.T) {
+	in := planFor("lose")
+	in.MeasuredTDEE = 2400
+	p, err := app.ComputePlan(in, planDay)
+	if err != nil {
+		t.Fatal(err)
+	}
+	// the formula's 1509 BMR stays, the burn is the measured one, less 550 for the pace
+	if p.BMR != 1509 || p.TDEE != 2400 || p.Budget != 1850 {
+		t.Errorf("BMR %d, TDEE %d, budget %d", p.BMR, p.TDEE, p.Budget)
+	}
+}
