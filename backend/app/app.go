@@ -31,7 +31,8 @@ func Register(app core.App, cfg Config) {
 	registerDiary(app)
 	registerWeight(app)
 	registerPhotos(app)
-	registerExtras(app)
+	registerExercise(app)
+	registerWeek(app)
 	registerFoods(app)
 	registerImport(app)
 

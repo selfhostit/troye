@@ -26,6 +26,9 @@ The architecture and build plan are in `docs/plan.md`.
 - Reading the food tables (Open Food Facts, USDA, NEVO) and the search helpers live in the
   shared module `github.com/selfhostit/food`, used by Shoppa too; `backend/foods` stores and
   ranks them for Troye. Change the reading there, then bump it in `backend/go.mod`.
+- A person's day-by-day totals (food and macros, budget plus exercise, water, weight) come
+  from `backend/daily`; build summaries, charts and reminders on it rather than summing
+  entries again.
 - `docs/first-feature.md` walks through adding a feature across every layer.
 - Deploy files are in `deploy/` (see `docs/deploy.md`); `make smoke` runs the images with
   `deploy/docker-compose.yml` end to end, and CI runs it on every PR.

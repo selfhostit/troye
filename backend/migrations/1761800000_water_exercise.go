@@ -6,7 +6,7 @@ import (
 	"github.com/pocketbase/pocketbase/tools/types"
 )
 
-// The kinds of exercise the app offers; backend/app/extras.go has how hard each is.
+// The kinds of exercise the app offers; backend/app/exercise.go has how hard each is.
 var exerciseKinds = []string{"walk", "dog_walk", "run", "cycle", "swim", "strength", "yoga", "hike", "sport", "other"}
 
 // Water drunk each day, and exercise done. Both are private to their owner.
