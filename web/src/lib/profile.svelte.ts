@@ -66,6 +66,15 @@ class ProfileStore {
     }
   }
 
+  /** Plans with a measured daily burn instead of the formula's; 0 goes back to the formula. */
+  async setMeasuredBurn(measured_tdee: number) {
+    if (this.current) {
+      this.current = await pb
+        .collection('profiles')
+        .update<Profile>(this.current.id, { measured_tdee });
+    }
+  }
+
   /** Opens the interview again, keeping the answers. */
   async redo() {
     if (this.current) {

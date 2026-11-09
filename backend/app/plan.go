@@ -26,6 +26,8 @@ type PlanInput struct {
 	Activity     string  `json:"activity"`
 	PaceKg       float64 `json:"pace_kg"`
 	Diet         string  `json:"diet"`
+	// MeasuredTDEE replaces the formula's daily burn when set (see backend/insights).
+	MeasuredTDEE int `json:"measured_tdee"`
 }
 
 // Plan is what the answers work out to.
@@ -126,6 +128,9 @@ func ComputePlan(in PlanInput, today time.Time) (Plan, error) {
 		bmr -= 161
 	}
 	tdee := bmr * factor
+	if in.MeasuredTDEE > 0 {
+		tdee = float64(in.MeasuredTDEE)
+	}
 	p.BMR, p.TDEE = int(math.Round(bmr)), int(math.Round(tdee))
 
 	daily := in.PaceKg * kcalPerKg / 7
@@ -175,7 +180,18 @@ func planInput(r *core.Record) PlanInput {
 		Activity:     r.GetString("activity"),
 		PaceKg:       r.GetFloat("pace_kg"),
 		Diet:         r.GetString("diet"),
+		MeasuredTDEE: r.GetInt("measured_tdee"),
 	}
+}
+
+// planFor is the input a profile's plan is worked out from: its answers, with
+// the goal turned to staying there once a weigh-in has reached it.
+func planFor(r *core.Record) PlanInput {
+	in := planInput(r)
+	if in.WeightKg > 0 && GoalReached(in) {
+		in.Goal = "maintain"
+	}
+	return in
 }
 
 // GoalReached tells whether the weight has got to the goal weight.
@@ -188,11 +204,7 @@ func GoalReached(in PlanInput) bool {
 // the answers are incomplete. Once a weigh-in reaches the goal, the budget
 // becomes the one for staying there, until a new goal is set.
 func storePlan(r *core.Record) {
-	in := planInput(r)
-	if in.WeightKg > 0 && GoalReached(in) {
-		in.Goal = "maintain"
-	}
-	p, err := ComputePlan(in, time.Now())
+	p, err := ComputePlan(planFor(r), time.Now())
 	if err != nil {
 		p = Plan{}
 	}

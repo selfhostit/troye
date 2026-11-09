@@ -39,3 +39,29 @@ func Round(x float64, decimals int) float64 {
 	p := math.Pow(10, float64(decimals))
 	return math.Round(x*p) / p
 }
+
+// Line is a straight line y = Intercept + Slope × x.
+type Line struct {
+	Slope     float64
+	Intercept float64
+}
+
+// LinearFit is the least-squares line through the points (xs[i], ys[i]), and
+// false with fewer than two distinct xs. xs and ys have the same length.
+func LinearFit(xs, ys []float64) (Line, bool) {
+	mx, ok := Mean(xs)
+	if !ok || len(xs) != len(ys) {
+		return Line{}, false
+	}
+	my, _ := Mean(ys)
+	var num, den float64
+	for i := range xs {
+		num += (xs[i] - mx) * (ys[i] - my)
+		den += (xs[i] - mx) * (xs[i] - mx)
+	}
+	if den == 0 {
+		return Line{}, false
+	}
+	slope := num / den
+	return Line{Slope: slope, Intercept: my - slope*mx}, true
+}

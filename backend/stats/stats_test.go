@@ -36,3 +36,16 @@ func TestRound(t *testing.T) {
 		t.Errorf("round %v", r)
 	}
 }
+
+func TestLinearFit(t *testing.T) {
+	l, ok := stats.LinearFit([]float64{0, 1, 2, 3}, []float64{80, 79.9, 79.6, 79.5})
+	if !ok || stats.Round(l.Slope, 3) != -0.18 || stats.Round(l.Intercept, 2) != 80.02 {
+		t.Errorf("line %+v", l)
+	}
+	if _, ok := stats.LinearFit([]float64{2, 2}, []float64{1, 3}); ok {
+		t.Error("a line through one x")
+	}
+	if _, ok := stats.LinearFit(nil, nil); ok {
+		t.Error("a line through nothing")
+	}
+}

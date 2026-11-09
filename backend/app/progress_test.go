@@ -42,6 +42,55 @@ func TestInsightReport(t *testing.T) {
 	}
 }
 
+func TestBudgetAdvice(t *testing.T) {
+	a := newApp(t)
+	defer a.Cleanup()
+	ada, _ := addUser(t, a, "ada@example.com", "owner")
+	p := addProfile(t, a, ada.Id) // 80 kg, losing 0.5 kg a week
+	for _, w := range weighins(t, a, ada.Id) {
+		if err := a.Delete(w); err != nil {
+			t.Fatal(err)
+		}
+	}
+	// four weeks of 2,000 kcal a day while losing 0.5 kg a week: a burn of 2,550
+	today := time.Now()
+	for i := 1; i <= 28; i++ {
+		day := today.AddDate(0, 0, -i).Format(time.DateOnly)
+		for _, meal := range []string{"breakfast", "lunch", "dinner"} {
+			save(t, a, "entries", map[string]any{"user": ada.Id, "date": day, "meal": meal, "name": meal, "kcal": 2000.0 / 3})
+		}
+		if i%4 == 0 {
+			save(t, a, "weighins", map[string]any{"user": ada.Id, "date": day, "weight_kg": 80 + float64(i)*0.5/7})
+		}
+	}
+
+	r, err := app.InsightReport(a, ada.Id, today, 30)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if r.Burn == nil || r.Burn.TDEE != 2550 {
+		t.Fatalf("burn %+v", r.Burn)
+	}
+	b := r.Budget
+	// 2,550 less 550 for the pace
+	if b == nil || b.Suggested != 2000 || b.MeasuredTDEE != 0 || b.FormulaTDEE < 2000 || b.Current != reload(t, a, p).GetInt("calorie_budget") {
+		t.Fatalf("advice %+v", b)
+	}
+
+	// choosing it moves the plan
+	p = reload(t, a, p)
+	p.Set("measured_tdee", r.Burn.TDEE)
+	if err := a.Save(p); err != nil {
+		t.Fatal(err)
+	}
+	if got := reload(t, a, p).GetInt("calorie_budget"); got != 2000 {
+		t.Errorf("budget %d", got)
+	}
+	if r, _ := app.InsightReport(a, ada.Id, today, 30); r.Budget == nil || r.Budget.MeasuredTDEE != 2550 || r.Budget.Current != 2000 {
+		t.Errorf("advice in use %+v", r.Budget)
+	}
+}
+
 func TestInsightsRoute(t *testing.T) {
 	scenarios := []struct {
 		name, url string

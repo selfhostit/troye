@@ -3,7 +3,10 @@ import {
   amount,
   bar,
   chartTop,
+  offerBudget,
+  trendText,
   warningText,
+  weekdayText,
   type InsightDay,
   type Report,
   type Totals,
@@ -28,6 +31,7 @@ const day = (
   food,
   estimate,
   budget: 2000,
+  weight_kg: 0,
 });
 
 describe('amount', () => {
@@ -73,5 +77,36 @@ describe('chartTop', () => {
     expect(
       chartTop({ ...r, rolling: { kcal: [null, null] } } as unknown as Report, 'kcal'),
     ).toBeCloseTo(2750);
+  });
+});
+
+describe('patterns', () => {
+  it('words a trend', () => {
+    expect(trendText({ nutrient: 'fat', per_week: 7, average: 70 })).toBe('Fat up 7 g a week');
+    expect(trendText({ nutrient: 'fiber', per_week: -2.4, average: 20 })).toBe(
+      'Fiber down 2 g a week',
+    );
+  });
+  it('words the weekday pattern', () => {
+    expect(weekdayText({ diffs: [], weekday: 'Saturday', diff: 600 })).toBe(
+      'Saturdays run about 600 kcal over your average day.',
+    );
+    expect(weekdayText({ diffs: [], weekday: '', diff: 0 })).toMatch(/even/);
+  });
+  it('offers the measured budget once it differs', () => {
+    const burn = {
+      from: '',
+      to: '',
+      tdee: 2550,
+      intake_kcal: 2000,
+      weight_per_week: -0.5,
+      days: 28,
+      weighins: 7,
+    };
+    const advice = { formula_tdee: 2075, measured_tdee: 0, suggested: 2000, current: 1520 };
+    expect(offerBudget(advice, burn)).toBe(true);
+    expect(offerBudget({ ...advice, measured_tdee: 2550 }, burn)).toBe(false);
+    expect(offerBudget({ ...advice, suggested: 1540 }, burn)).toBe(false);
+    expect(offerBudget(null, burn)).toBe(false);
   });
 });
