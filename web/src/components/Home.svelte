@@ -3,7 +3,7 @@
   import Diary from './Diary.svelte';
   import Me from './Me.svelte';
   import Photos from './Photos.svelte';
-  import Weight from './Weight.svelte';
+  import Progress from './Progress.svelte';
 
   // The signed-in app: tabs, each with its own #address so Back works.
   const tabs = [
@@ -18,8 +18,8 @@
       icon: 'M4 8h3l2-3h6l2 3h3v11H4zM12 17a4 4 0 1 0 0-8 4 4 0 0 0 0 8',
     },
     {
-      id: 'weight',
-      label: 'Weight',
+      id: 'progress',
+      label: 'Progress',
       icon: 'M4 20h16M5 16l4.5-4.5 3 3L19 8M15 8h4v4',
     },
     {
@@ -30,7 +30,11 @@
   ] as const;
   type Tab = (typeof tabs)[number]['id'];
 
-  const fromHash = (): Tab => tabs.find((t) => `#${t.id}` === location.hash)?.id ?? 'diary';
+  // the progress tab's views have their own addresses
+  const fromHash = (): Tab =>
+    ['#weight', '#nutrition'].includes(location.hash)
+      ? 'progress'
+      : (tabs.find((t) => `#${t.id}` === location.hash)?.id ?? 'diary');
   let tab = $state<Tab>(fromHash());
 
   onMount(() => {
@@ -46,8 +50,8 @@
       <Diary />
     {:else if tab === 'photos'}
       <Photos />
-    {:else if tab === 'weight'}
-      <Weight />
+    {:else if tab === 'progress'}
+      <Progress />
     {:else}
       <Me />
     {/if}
@@ -59,7 +63,7 @@
     <div class="mx-auto grid max-w-md grid-cols-4">
       {#each tabs as t (t.id)}
         <a
-          href="#{t.id}"
+          href={t.id === 'progress' ? '#weight' : `#${t.id}`}
           class="flex flex-col items-center gap-0.5 py-2.5 text-xs font-medium {tab === t.id
             ? 'text-brand-600 dark:text-brand-400'
             : 'text-zinc-500'}"
