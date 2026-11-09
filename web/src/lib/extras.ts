@@ -34,7 +34,7 @@ export interface Exercise extends RecordModel {
   kcal: number;
 }
 
-// The same METs as backend/app/extras.go, for the estimate while choosing.
+// The same METs as backend/app/exercise.go, for the estimate while choosing.
 export const exerciseKinds: { id: ExerciseKind; label: string; met: number }[] = [
   { id: 'dog_walk', label: 'Dog walk', met: 3.0 },
   { id: 'walk', label: 'Walk', met: 3.5 },
