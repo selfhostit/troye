@@ -2,20 +2,30 @@
   import { onMount } from 'svelte';
   import { addOnIdeas, meals, type Entry, type Food, type Meal } from '../lib/diary';
   import { diary, lookupBarcode } from '../lib/diary.svelte';
+  import {
+    pickKind,
+    type Favorite,
+    type FavoriteChoice,
+    type FavoriteItem,
+  } from '../lib/favorites';
+  import { favorites } from '../lib/favorites.svelte';
   import { errorMessage } from '../lib/pb';
   import type { MealPhoto } from '../lib/photos';
   import BarcodeScanner from './BarcodeScanner.svelte';
   import Sheet from './Sheet.svelte';
   import AddedStep from './add-food/AddedStep.svelte';
+  import FavoriteStep from './add-food/FavoriteStep.svelte';
   import FoodAmount from './add-food/FoodAmount.svelte';
   import FoodSearch from './add-food/FoodSearch.svelte';
   import NewFood from './add-food/NewFood.svelte';
   import PhotoStep from './add-food/PhotoStep.svelte';
   import QuickAdd from './add-food/QuickAdd.svelte';
 
-  // Adding food to a meal: search (recent foods first), take a photo, scan a
-  // barcode, make a custom food, or quick-add calories. Picking a food asks how
-  // much. Once a food is in, the sheet offers what usually goes with it (milk
+  // Adding food to a meal: a favorite, search (recent foods first), take a
+  // photo, scan a barcode, make a custom food, or quick-add calories. Picking a
+  // food asks how much. A favorite shows last time's picks to change before it
+  // goes in; a food found for it (another kind of cheese) goes into the
+  // favorite instead of the diary. Once a food is in, the sheet offers what usually goes with it (milk
   // for a coffee, an egg for a noodle soup), and those are logged as its
   // add-ons. Each step is its own component in add-food/; this sheet holds what
   // they share (the meal, the entry being added to) and moves between them.
@@ -34,7 +44,7 @@
     onreview: (p: MealPhoto) => void;
   } = $props();
 
-  type View = 'search' | 'amount' | 'scan' | 'custom' | 'quick' | 'photo' | 'added';
+  type View = 'search' | 'amount' | 'scan' | 'custom' | 'quick' | 'photo' | 'added' | 'favorite';
   let view = $state<View>('search');
   // the meal it opened for, then whichever the person picks
   // svelte-ignore state_referenced_locally
@@ -58,9 +68,17 @@
   let photoFile = $state<File | null>(null);
   let sentPhoto = $state<MealPhoto | null>(null);
   let photoStep = $state<PhotoStep>();
+  // the favorite being logged, as picked this time
+  let fav = $state<Favorite | null>(null);
+  let favItems = $state<FavoriteItem[]>([]);
+  // as saved, with a new name once renamed
+  const favNow = $derived(fav ? (favorites.list.find((f) => f.id === fav!.id) ?? fav) : null);
+  // while set, the food picked goes into the favorite: as a kind of an item, or as a new item
+  let into = $state<{ item: number | 'new'; from?: FavoriteChoice } | null>(null);
 
   onMount(() => {
     diary.loadRecent();
+    favorites.load();
   });
 
   function pick(f: Food) {
@@ -71,6 +89,10 @@
 
   async function add(grams: number, amount: string) {
     if (!food) return;
+    if (into) {
+      putInFavorite({ food: food.id, grams, ...(amount ? { amount } : {}) });
+      return;
+    }
     busy = true;
     error = '';
     try {
@@ -81,6 +103,39 @@
     } finally {
       busy = false;
     }
+  }
+
+  function openFavorite(f: Favorite) {
+    fav = f;
+    favItems = f.items;
+    into = null;
+    view = 'favorite';
+  }
+
+  /** Finds a food for the favorite, or changes an item's amount (with its food). */
+  function findFor(item: number | 'new', amountOnly = false) {
+    const from = item === 'new' ? undefined : favItems[item].choices[favItems[item].pick];
+    into = { item, from: amountOnly ? from : undefined };
+    query = '';
+    const f = from && favorites.foods.get(from.food);
+    if (amountOnly && f) pick(f);
+    else view = 'search';
+  }
+
+  function putInFavorite(choice: FavoriteChoice) {
+    const item = into!.item;
+    favItems =
+      item === 'new'
+        ? [...favItems, { choices: [choice], pick: 0 }]
+        : favItems.map((it, i) => (i === item ? pickKind(it, choice) : it));
+    favorites.remember([food!]);
+    backToFavorite();
+  }
+
+  function backToFavorite() {
+    into = null;
+    query = '';
+    view = 'favorite';
   }
 
   async function scanned(code: string) {
@@ -101,6 +156,8 @@
     sentPhoto = null;
     view = 'photo';
   }
+
+  const mealLabel = $derived(meals.find((m) => m.id === meal)?.label.toLowerCase() ?? '');
 
   /**
    * After logging: an add-on goes back to its entry, so more can go with it; a
@@ -140,24 +197,29 @@
     custom: 'New food',
     quick: 'Quick add',
     photo: 'Meal photo',
+    favorite: '',
   };
 </script>
 
 <Sheet
   title={view === 'photo' && sentPhoto
     ? 'Photo received'
-    : base && view === 'search'
-      ? `Add to ${base.name}`
-      : addTo && view === 'added'
-        ? addTo.name
-        : titles[view]}
-  onclose={view === 'added' || (view === 'search' && !base)
-    ? onclose
-    : view === 'search'
-      ? () => showAdded(base!)
-      : view === 'photo' && sentPhoto
-        ? () => photoStep?.done()
-        : () => (view = 'search')}
+    : favNow && (view === 'favorite' || (into && view === 'search'))
+      ? favNow.name
+      : base && view === 'search'
+        ? `Add to ${base.name}`
+        : addTo && view === 'added'
+          ? addTo.name
+          : titles[view]}
+  onclose={into
+    ? backToFavorite
+    : view === 'added' || (view === 'search' && !base)
+      ? onclose
+      : view === 'search'
+        ? () => showAdded(base!)
+        : view === 'photo' && sentPhoto
+          ? () => photoStep?.done()
+          : () => (view = 'search')}
 >
   {#if !base}
     <div class="mb-4 flex gap-1 overflow-x-auto" role="radiogroup" aria-label="Meal">
@@ -177,7 +239,26 @@
     <p class="mb-3 text-sm text-red-600 dark:text-red-400" role="alert">{error}</p>
   {/if}
 
-  {#if view === 'added' && base}
+  {#if view === 'favorite' && favNow}
+    <FavoriteStep
+      fav={favNow}
+      bind:items={favItems}
+      {meal}
+      onamount={(i) => findFor(i, true)}
+      onkind={(i) => findFor(i)}
+      onfood={() => findFor('new')}
+      onlogged={onclose}
+      ondeleted={() => ((fav = null), (view = 'search'))}
+    />
+  {:else if view === 'search' && into}
+    <FoodSearch
+      placeholder={into.item === 'new' ? 'What else is in it?' : 'Which kind?'}
+      bind:query
+      onpick={pick}
+      onscan={() => (view = 'scan')}
+      onnew={(name) => ((newFood = { name, barcode: '', notice: '' }), (view = 'custom'))}
+    />
+  {:else if view === 'added' && base}
     <AddedStep {base} {usual} onpick={pick} onsearch={addOn} ondone={onclose} />
   {:else if view === 'search'}
     <FoodSearch
@@ -188,15 +269,17 @@
       onscan={() => (view = 'scan')}
       onnew={(name) => ((newFood = { name, barcode: '', notice: '' }), (view = 'custom'))}
       onquick={() => (view = 'quick')}
+      onfavorite={openFavorite}
     />
   {:else if view === 'amount' && food}
     {#key food.id}
       <FoodAmount
         {food}
         {busy}
-        to={base
-          ? base.name.toLowerCase()
-          : (meals.find((m) => m.id === meal)?.label.toLowerCase() ?? '')}
+        from={into?.from}
+        action={into && fav
+          ? `Put it in ${fav.name.toLowerCase()}`
+          : `Add to ${base ? base.name.toLowerCase() : mealLabel}`}
         onadd={add}
       />
     {/key}

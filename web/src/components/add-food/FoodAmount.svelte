@@ -5,23 +5,28 @@
   import { profile } from '../../lib/profile.svelte';
   import AmountPicker from '../AmountPicker.svelte';
 
-  // How much of a food, starting from what was logged last time, with what it
-  // comes to. The button says where it goes ("Add to breakfast").
+  // How much of a food, starting from what was logged last time (or the amount
+  // given), with what it comes to. The button says what happens next, such as
+  // "Add to breakfast".
   let {
     food,
-    to,
+    action,
+    from,
     busy,
     onadd,
   }: {
     food: Food;
-    /** where it goes, such as "breakfast" or "coffee" */
-    to: string;
+    action: string;
+    /** the amount to start from, instead of the last one logged */
+    from?: { grams: number; amount?: string };
     busy: boolean;
     onadd: (grams: number, amount: string) => void;
   } = $props();
 
   // svelte-ignore state_referenced_locally
-  const start = startAmount(food, diary.lastAmounts.get(food.id));
+  const start = from
+    ? { grams: from.grams, amount: from.amount ?? '' }
+    : startAmount(food, diary.lastAmounts.get(food.id));
   let grams = $state<number | undefined>(start.grams);
   // the amount as counted, such as "2 tbsp", or empty for grams
   let amount = $state(start.amount);
@@ -49,5 +54,5 @@
   disabled={!grams || busy}
   onclick={() => grams && onadd(grams, amount)}
 >
-  {busy ? 'Adding…' : `Add to ${to}`}
+  {busy ? 'Adding…' : action}
 </button>
