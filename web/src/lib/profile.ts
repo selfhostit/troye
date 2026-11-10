@@ -46,7 +46,20 @@ export interface Profile extends RecordModel, Answers {
   goal_date: string;
   /** the measured burn the plan uses instead of the formula's; 0 for the formula */
   measured_tdee: number;
+  /** the reminders to log this person turned off (backend/reminders) */
+  reminders_off: Reminder[];
 }
+
+export type Reminder = 'evening' | 'gap';
+
+export const reminderKinds: { id: Reminder; label: string; hint: string }[] = [
+  { id: 'evening', label: 'End of the day', hint: 'At 9 pm, when a meal is missing' },
+  {
+    id: 'gap',
+    label: 'After 8 hours without logging',
+    hint: 'Once a day, only in your eating hours',
+  },
+];
 
 /** What POST /api/app/plan returns. */
 export interface Plan {

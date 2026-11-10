@@ -34,6 +34,7 @@ func Register(app core.App, cfg Config) {
 	registerExercise(app)
 	registerWeek(app)
 	registerProgress(app)
+	registerReminders(app)
 	registerFoods(app)
 	registerImport(app)
 
