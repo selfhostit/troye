@@ -3,27 +3,39 @@
   import { diary, searchFoods } from '../../lib/diary.svelte';
   import { errorMessage } from '../../lib/pb';
   import { startAmount } from '../../lib/portions';
+  import {
+    favoriteKcal,
+    favoriteSummary,
+    matchFavorites,
+    type Favorite,
+  } from '../../lib/favorites';
+  import { favorites } from '../../lib/favorites.svelte';
   import { profile } from '../../lib/profile.svelte';
 
   // Finding a food: search (recent foods when nothing is typed), or another way
-  // in: a photo, a barcode, a new food, or a quick add. When adding to an entry
-  // (base), it asks what went with it, and the photo is left out.
+  // in: a barcode or a new food. For a meal it also offers the person's
+  // favorites, a photo and a quick add; for an entry (base) it asks what went
+  // with it; for a favorite it asks for a food to put in it (placeholder).
   let {
-    base,
+    base = null,
+    placeholder,
     query = $bindable(''),
     onpick,
-    onphoto,
     onscan,
     onnew,
+    onphoto,
     onquick,
+    onfavorite,
   }: {
-    base: Entry | null;
+    base?: Entry | null;
+    placeholder?: string;
     query: string;
     onpick: (f: Food) => void;
-    onphoto: (file: File) => void;
     onscan: () => void;
     onnew: (name: string) => void;
-    onquick: () => void;
+    onphoto?: (file: File) => void;
+    onquick?: () => void;
+    onfavorite?: (f: Favorite) => void;
   } = $props();
 
   let results = $state<Food[]>([]);
@@ -55,10 +67,14 @@
 
   function pickedPhoto(e: Event) {
     const file = (e.currentTarget as HTMLInputElement).files?.[0];
-    if (file) onphoto(file);
+    if (file) onphoto?.(file);
   }
 
   const shown = $derived(query.trim().length >= 2 ? results : diary.recent);
+  const lang = $derived(profile.current?.food_language);
+  const favs = $derived(
+    onfavorite ? matchFavorites(favorites.list, query.trim(), favorites.foods, lang) : [],
+  );
 </script>
 
 {#snippet foodRow(f: Food)}
@@ -88,6 +104,28 @@
   </li>
 {/snippet}
 
+{#snippet favoriteRow(f: Favorite)}
+  <li>
+    <button
+      class="flex w-full items-center justify-between gap-3 px-1 py-3 text-left"
+      onclick={() => onfavorite?.(f)}
+    >
+      <span class="min-w-0">
+        <span class="line-clamp-2 font-medium">
+          <span class="text-amber-500" aria-hidden="true">★</span>
+          {f.name}
+        </span>
+        <span class="block truncate text-sm text-zinc-500 dark:text-zinc-400">
+          {favoriteSummary(f.items, favorites.foods, lang)}
+        </span>
+      </span>
+      <span class="shrink-0 text-sm text-zinc-700 tabular-nums dark:text-zinc-200">
+        {favoriteKcal(f.items, favorites.foods)} kcal
+      </span>
+    </button>
+  </li>
+{/snippet}
+
 {#if error}
   <p class="mb-3 text-sm text-red-600 dark:text-red-400" role="alert">{error}</p>
 {/if}
@@ -95,13 +133,14 @@
 <!-- svelte-ignore a11y_autofocus -->
 <input
   type="search"
-  placeholder={base ? `What did you add to ${base.name.toLowerCase()}?` : 'Search foods'}
+  placeholder={placeholder ??
+    (base ? `What did you add to ${base.name.toLowerCase()}?` : 'Search foods')}
   aria-label="Search foods"
   autocomplete="off"
-  autofocus={!!base}
+  autofocus={!!base || !!placeholder}
   bind:value={query}
 />
-{#if !base}
+{#if onphoto}
   <label class="btn-primary mt-3 cursor-pointer flex-row gap-2">
     <svg viewBox="0 0 24 24" class="size-5" fill="none" stroke="currentColor" stroke-width="1.8"
       ><path
@@ -119,11 +158,20 @@
     />
   </label>
 {/if}
-<div class="mt-2 grid grid-cols-3 gap-2 text-sm">
+<div class="mt-2 grid gap-2 text-sm {onquick ? 'grid-cols-3' : 'grid-cols-2'}">
   <button class="btn-secondary px-2" onclick={onscan}>Scan barcode</button>
   <button class="btn-secondary px-2" onclick={() => onnew(query)}>New food</button>
-  <button class="btn-secondary px-2" onclick={onquick}>Quick add</button>
+  {#if onquick}
+    <button class="btn-secondary px-2" onclick={onquick}>Quick add</button>
+  {/if}
 </div>
+
+{#if favs.length}
+  <h3 class="mt-5 text-sm font-medium text-zinc-500 dark:text-zinc-400">Favorites</h3>
+  <ul class="divide-y divide-zinc-200 dark:divide-zinc-800">
+    {#each favs as f (f.id)}{@render favoriteRow(f)}{/each}
+  </ul>
+{/if}
 
 <h3 class="mt-5 text-sm font-medium text-zinc-500 dark:text-zinc-400">
   {query.trim().length >= 2 ? (searching ? 'Searching…' : 'Results') : 'Recent'}
@@ -132,11 +180,11 @@
   <ul class="divide-y divide-zinc-200 dark:divide-zinc-800">
     {#each shown as f (f.id)}{@render foodRow(f)}{/each}
   </ul>
-{:else if query.trim().length >= 2 && !searching}
+{:else if query.trim().length >= 2 && !searching && !favs.length}
   <p class="mt-2 text-sm text-zinc-500 dark:text-zinc-400">
     Nothing found. Try another word, or add it as a new food.
   </p>
-{:else if query.trim().length < 2}
+{:else if query.trim().length < 2 && !favs.length}
   <p class="mt-2 text-sm text-zinc-500 dark:text-zinc-400">
     Foods you log show up here, so the next time is one tap.
   </p>

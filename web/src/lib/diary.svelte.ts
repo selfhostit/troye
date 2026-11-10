@@ -98,6 +98,17 @@ class Diary {
     return e;
   }
 
+  /** Shows entries the server logged in one go, such as a favorite. */
+  took(list: Entry[]) {
+    for (const e of list) {
+      this.put(e);
+      const f = e.expand?.food;
+      if (!f) continue;
+      this.recent = [f, ...this.recent.filter((r) => r.id !== f.id)];
+      this.lastAmounts.set(f.id, { grams: e.grams, amount: e.amount ?? '' });
+    }
+  }
+
   async quickAdd(meal: Meal, name: string, kcal: number, parent?: Entry) {
     const e = await pb.collection('entries').create<Entry>({
       user: session.user!.id,

@@ -47,6 +47,8 @@ type LogItem struct {
 	Amount string
 	Name   string
 	Kcal   float64
+	// AddOn puts it on the first item, like the cheese on a toast
+	AddOn bool
 }
 
 // logEntries puts several items in one person's diary on a day and meal, such
@@ -71,6 +73,9 @@ func logEntries(app core.App, user, date, meal string, items []LogItem) ([]*core
 		} else {
 			entry.Set("name", it.Name)
 			entry.Set("kcal", it.Kcal)
+		}
+		if it.AddOn && len(out) > 0 {
+			entry.Set("parent", out[0].Id)
 		}
 		if err := app.Save(entry); err != nil {
 			return nil, err

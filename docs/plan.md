@@ -96,3 +96,5 @@ Each step is one PR that leaves the app working.
 9. Progress tracking: nutrient charts with 7-day averages, warnings and estimates for
    unlogged days; then trends and an adaptive budget from the weight trend; then reminders
    to log (end of day, and after 8 hours without logging).
+10. Favorites: save a logged meal (a toast with cheese and an egg) and log it again in one
+    go, swapping the kind of each food (Gouda or Emmental, boiled or fried) as you like.
