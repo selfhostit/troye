@@ -421,28 +421,18 @@ func logPhoto(e *core.RequestEvent) error {
 	}
 
 	err = e.App.RunInTransaction(func(tx core.App) error {
-		entries, err := tx.FindCollectionByNameOrId("entries")
+		items := make([]LogItem, len(body.Items))
+		for i, it := range body.Items {
+			items[i] = LogItem{Food: it.Food, Grams: it.Grams, Name: it.Name, Kcal: it.Kcal}
+		}
+		logged, err := logEntries(tx, e.Auth.Id, body.Date, body.Meal, items)
 		if err != nil {
 			return err
 		}
 		confirmed := make([]map[string]any, 0, len(body.Items))
-		for _, it := range body.Items {
-			entry := core.NewRecord(entries)
-			entry.Set("user", e.Auth.Id)
-			entry.Set("date", body.Date)
-			entry.Set("meal", body.Meal)
-			if it.Food != "" {
-				entry.Set("food", it.Food)
-				entry.Set("grams", it.Grams)
-			} else {
-				entry.Set("name", it.Name)
-				entry.Set("kcal", it.Kcal)
-			}
-			if err := tx.Save(entry); err != nil {
-				return err
-			}
+		for i, it := range body.Items {
 			confirmed = append(confirmed, map[string]any{
-				"name": it.Name, "food": it.Food, "grams": it.Grams, "kcal": entry.GetFloat("kcal"), "entry": entry.Id,
+				"name": it.Name, "food": it.Food, "grams": it.Grams, "kcal": logged[i].GetFloat("kcal"), "entry": logged[i].Id,
 			})
 			if it.Food != "" && it.Name != "" {
 				if err := rememberAlias(tx, e.Auth.Id, it.Name, it.Food, it.Grams); err != nil {

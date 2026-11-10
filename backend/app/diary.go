@@ -38,6 +38,48 @@ func registerDiary(app core.App) {
 	})
 }
 
+// LogItem is one thing to put in the diary: a food and how much of it, or
+// just a name and calories.
+type LogItem struct {
+	Food  string
+	Grams float64
+	// as counted, such as "2 tbsp"; empty for grams
+	Amount string
+	Name   string
+	Kcal   float64
+}
+
+// logEntries puts several items in one person's diary on a day and meal, such
+// as the foods of a checked meal photo. Each goes through the same hooks as an
+// entry made one at a time, so totals and names are filled in the same way.
+// Run it in a transaction so that the items go in together or not at all.
+func logEntries(app core.App, user, date, meal string, items []LogItem) ([]*core.Record, error) {
+	entries, err := app.FindCollectionByNameOrId("entries")
+	if err != nil {
+		return nil, err
+	}
+	out := make([]*core.Record, 0, len(items))
+	for _, it := range items {
+		entry := core.NewRecord(entries)
+		entry.Set("user", user)
+		entry.Set("date", date)
+		entry.Set("meal", meal)
+		if it.Food != "" {
+			entry.Set("food", it.Food)
+			entry.Set("grams", it.Grams)
+			entry.Set("amount", it.Amount)
+		} else {
+			entry.Set("name", it.Name)
+			entry.Set("kcal", it.Kcal)
+		}
+		if err := app.Save(entry); err != nil {
+			return nil, err
+		}
+		out = append(out, entry)
+	}
+	return out, nil
+}
+
 // fitAddOn checks that an add-on hangs off one of the same person's entries,
 // one level deep, and puts it on its parent's day and meal.
 func fitAddOn(app core.App, entry *core.Record) error {
