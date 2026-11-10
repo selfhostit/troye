@@ -31,9 +31,31 @@ your own GPU PC, never by a cloud service, and every photo and log stays at home
 Troye is ready for daily use and keeps getting new features; [docs/plan.md](docs/plan.md)
 has the architecture and what comes next. Troye is built on [plasto](https://github.com/selfhostit/plasto).
 
-## Quick start
+## Install
 
-You need [Go](https://go.dev/dl/) 1.27+, [Node](https://nodejs.org) 22+ and
+On a NAS, a Raspberry Pi or any Linux machine with a terminal (or SSH):
+
+```sh
+curl -fsSL https://github.com/selfhostit/docs/releases/latest/download/install.sh | sh -s -- troye
+```
+
+This is the installer for every selfhostit app, set to install only Troye. It sets up Docker
+if it is missing, installs a pinned release of Troye and checks every file against its
+SHA-256, and can give Troye an `https://` address with Tailscale, so it opens on your phones
+at home and away. When it is done, open the address it lists, type the setup code and make
+your account. Troye needs no other selfhostit app. Search and barcodes work straight away;
+reading food photos also needs a vision model on a computer with a GPU, set up in
+[docs/deploy.md](docs/deploy.md#the-photo-analyser-gpu-pc).
+
+Step by step for a [Pi or Linux](https://github.com/selfhostit/docs/blob/main/linux.md),
+a [Synology](https://github.com/selfhostit/docs/blob/main/synology.md) or
+[another NAS](https://github.com/selfhostit/docs/blob/main/other-nas.md), and
+[after you install](https://github.com/selfhostit/docs/blob/main/first-steps.md): adding your
+household, putting Troye on your phones, and what to try when it doesn't open.
+
+## Develop
+
+To work on Troye itself, you need [Go](https://go.dev/dl/) 1.27+, [Node](https://nodejs.org) 22+ and
 [uv](https://docs.astral.sh/uv/) (for the Python workers).
 
 ```sh
@@ -90,9 +112,12 @@ Everything a person sees is the web app, served by the Go app. Heavy work runs i
 Python workers, here or on another machine, which write records; Go hooks react to
 those records and notify people.
 
-## Deploy
+## Deploy on its own
 
-On any Linux machine with Docker (a NAS, a Raspberry Pi, a server):
+Troye's own installer is an alternative to [the one above](#install): it gives Troye its own
+Tailscale machine, `https://troye.<your-tailnet>.ts.net`, signed in with an auth key. It runs
+from `main` and takes the newest release, without the SHA-256 checks of the shared installer.
+On any Linux machine with Docker:
 
 ```sh
 curl -fsSL https://raw.githubusercontent.com/selfhostit/troye/main/deploy/install.sh | sh
