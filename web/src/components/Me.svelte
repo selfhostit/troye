@@ -5,6 +5,7 @@
   import { eatingEnd, fastingDaysLabel, fastings, motivations } from '../lib/profile';
   import { profile } from '../lib/profile.svelte';
   import { session } from '../lib/session.svelte';
+  import Account from './Account.svelte';
   import Accuracy from './Accuracy.svelte';
   import FoodData from './FoodData.svelte';
   import ImportLoseIt from './ImportLoseIt.svelte';
@@ -102,14 +103,7 @@
   <ImportLoseIt onclose={() => (showImport = false)} />
 {/if}
 
-<section class="card text-sm text-zinc-600 dark:text-zinc-400">
-  Signed in as {user.email}{session.isOwner ? ' (owner)' : ''}.
-  {#if session.isOwner}
-    Manage users and data in the <a class="text-brand-600 underline dark:text-brand-400" href="/_/"
-      >admin page</a
-    >.
-  {/if}
-</section>
+<Account />
 
 {#await version then v}
   {#if v}<p class="mt-auto text-center text-xs text-zinc-400">Version {v}</p>{/if}
